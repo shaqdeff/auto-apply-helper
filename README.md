@@ -5,11 +5,23 @@ Production-style TypeScript project that uses Playwright to extract job posting 
 The tool:
 
 - Opens a job posting page.
-- Extracts title, company name, and description.
+- Simulates an extension popup that shows extracted title, company name, description preview, and confidence.
 - Prints structured JSON to stdout.
-- Clicks an Apply button or link when present.
-- Fills dummy name and email fields.
+- Clicks or detects an Apply button/link when present.
+- Detects sign-in redirects and reports: `Please sign in, then reopen extension.`
+- Fills dummy name, email, phone, location, and profile URL fields when available.
 - Does not submit applications.
+
+## Demo Flow
+
+1. User visits a job page.
+2. User opens the extension popup.
+3. Popup shows extracted job title, company, description preview, and confidence.
+4. User clicks `Autofill`.
+5. The helper clicks or detects `Apply`.
+6. If the site redirects to sign-in, the result shows `Please sign in, then reopen extension.`
+7. On an application page, the helper fills supported profile fields.
+8. The helper never submits the application.
 
 ## Project Structure
 
@@ -75,4 +87,4 @@ npm run build
 - The scraper prioritizes JSON-LD `JobPosting` structured data when available, then falls back to visible page locators.
 - Locators use accessible roles, labels, attributes, and text fallbacks instead of brittle single-site selectors.
 - Navigation and browser setup include retries, timeouts, dialog handling, and graceful cleanup.
-- Application automation stops after filling dummy fields, which keeps the project useful for demos without actually submitting anything.
+- Application automation records detected submit controls but never clicks them, which keeps the project useful for demos without submitting anything.

@@ -32,6 +32,16 @@ const DESCRIPTION_TERMS = [
   "what you will do"
 ];
 
+const INVALID_COMPANY_TEXTS = new Set([
+  "apply",
+  "apply now",
+  "view job",
+  "log in",
+  "login",
+  "sign in",
+  "sign up"
+]);
+
 export async function extractJobData(
   page: Page,
   options: JobExtractionOptions = {}
@@ -101,6 +111,16 @@ async function extractTitle(page: Page, timeoutMs: number): Promise<string | nul
 }
 
 async function extractCompanyName(page: Page, timeoutMs: number): Promise<string | null> {
+  const companyLinks = await collectLocatorTexts(page.locator('a[href*="/companies/"]'), {
+    maxItems: 8,
+    timeoutMs,
+    visibleOnly: true
+  });
+  const linkedCompany = companyLinks.find(isValidCompanyName);
+  if (linkedCompany) {
+    return linkedCompany;
+  }
+
   const candidates = [
     page.locator(
       '[data-testid*="company" i], [class*="company" i], [id*="company" i], [itemprop="hiringOrganization"]'
@@ -110,13 +130,20 @@ async function extractCompanyName(page: Page, timeoutMs: number): Promise<string
   ];
 
   for (const locator of candidates) {
-    const text = await readLocatorText(locator, { timeoutMs });
-    if (text && text.length <= 160) {
+    const texts = await collectLocatorTexts(locator, {
+      maxItems: 8,
+      timeoutMs,
+      visibleOnly: true
+    });
+    const text = texts.find(isValidCompanyName);
+
+    if (text) {
       return text;
     }
   }
 
-  return null;
+  const visibleTitle = await extractTitle(page, timeoutMs);
+  return extractCompanyFromTitle(visibleTitle);
 }
 
 async function extractDescription(page: Page, timeoutMs: number): Promise<string | null> {
@@ -165,7 +192,11 @@ async function extractDescription(page: Page, timeoutMs: number): Promise<string
     }
   }
 
-  return bestScore >= 80 ? bestText : null;
+  if (bestScore >= 80) {
+    return bestText;
+  }
+
+  return extractDescriptionFromBodyText(page);
 }
 
 async function extractJsonLdJobPosting(page: Page): Promise<JsonLdExtraction> {
@@ -275,6 +306,50 @@ function scoreDescription(text: string): number {
   }, 0);
 
   return Math.min(text.length, 2_000) + termScore;
+}
+
+async function extractDescriptionFromBodyText(page: Page): Promise<string | null> {
+  const bodyText = await page
+    .locator("body")
+    .innerText({ timeout: 1_500 })
+    .catch(() => null);
+  const text = compactText(bodyText);
+
+  if (!text) {
+    return null;
+  }
+
+  const lowerText = text.toLowerCase();
+  const startIndex = lowerText.indexOf("about the role");
+  if (startIndex < 0) {
+    return null;
+  }
+
+  const endMarkers = [
+    "apply now other jobs",
+    "other jobs at",
+    "hundreds of yc startups",
+    "work at a startup jobs internships"
+  ];
+  const markerIndexes = endMarkers
+    .map((marker) => lowerText.indexOf(marker, startIndex + "about the role".length))
+    .filter((index) => index > startIndex);
+  const endIndex = markerIndexes.length > 0 ? Math.min(...markerIndexes) : text.length;
+  const description = compactText(text.slice(startIndex, endIndex));
+
+  return description && scoreDescription(description) >= 80 ? description : null;
+}
+
+function extractCompanyFromTitle(title: string | null): string | null {
+  const match = title?.match(/\bat\s+(.+?)(?:\([^)]*\))?$/i);
+  const company = compactText(match?.[1]);
+
+  return company && isValidCompanyName(company) ? company : null;
+}
+
+function isValidCompanyName(value: string | null | undefined): value is string {
+  const text = compactText(value);
+  return Boolean(text && text.length <= 160 && !INVALID_COMPANY_TEXTS.has(text.toLowerCase()));
 }
 
 function getConfidence(
