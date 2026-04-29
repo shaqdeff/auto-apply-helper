@@ -1,13 +1,23 @@
-import type { Locator, Page } from "playwright";
+import type { Locator, Page } from 'playwright';
 import {
   collectLocatorTexts,
   compactText,
   getMetaContent,
   readLocatorText,
   truncateText,
-  waitForPageReady
-} from "../utils";
-import type { ExtractionConfidence, JobData, JobExtractionOptions, JsonLdJobPosting } from "./types";
+  waitForPageReady,
+} from '../utils';
+import type {
+  EmploymentType,
+  ExtractionConfidence,
+  JobData,
+  JobExtractionOptions,
+  JsonLdJobPosting,
+  JsonLdLocation,
+  JsonLdSalary,
+  SalaryRange,
+  WorkMode,
+} from './types';
 
 interface DescriptionCandidate {
   name: string;
@@ -19,32 +29,38 @@ interface JsonLdExtraction {
   title: string | null;
   companyName: string | null;
   description: string | null;
+  location: string | null;
+  workMode: WorkMode;
+  employmentType: EmploymentType;
+  salary: SalaryRange | null;
+  datePosted: string | null;
+  applicationDeadline: string | null;
   notes: string[];
 }
 
 const DESCRIPTION_TERMS = [
-  "responsibilities",
-  "requirements",
-  "qualifications",
-  "experience",
-  "benefits",
-  "about the role",
-  "what you will do"
+  'responsibilities',
+  'requirements',
+  'qualifications',
+  'experience',
+  'benefits',
+  'about the role',
+  'what you will do',
 ];
 
 const INVALID_COMPANY_TEXTS = new Set([
-  "apply",
-  "apply now",
-  "view job",
-  "log in",
-  "login",
-  "sign in",
-  "sign up"
+  'apply',
+  'apply now',
+  'view job',
+  'log in',
+  'login',
+  'sign in',
+  'sign up',
 ]);
 
 export async function extractJobData(
   page: Page,
-  options: JobExtractionOptions = {}
+  options: JobExtractionOptions = {},
 ): Promise<JobData> {
   const timeoutMs = options.timeoutMs ?? 5_000;
   const maxDescriptionLength = options.maxDescriptionLength ?? 8_000;
@@ -58,41 +74,60 @@ export async function extractJobData(
   const visibleTitle = await extractTitle(page, timeoutMs);
   const visibleCompany = await extractCompanyName(page, timeoutMs);
   const visibleDescription = await extractDescription(page, timeoutMs);
+  const visibleLocation = await extractLocation(page, timeoutMs);
 
   const title = jsonLd.title ?? visibleTitle;
   const companyName = jsonLd.companyName ?? visibleCompany;
-  const description = truncateText(jsonLd.description ?? visibleDescription, maxDescriptionLength);
+  const description = truncateText(
+    jsonLd.description ?? visibleDescription,
+    maxDescriptionLength,
+  );
+  const location = jsonLd.location ?? visibleLocation;
+  const workMode = jsonLd.workMode ?? detectWorkMode(description);
+  const employmentType =
+    jsonLd.employmentType ?? detectEmploymentType(description);
 
   if (!jsonLd.title && visibleTitle) {
-    notes.push("Title extracted from visible page content.");
+    notes.push('Title extracted from visible page content.');
   }
 
   if (!jsonLd.companyName && visibleCompany) {
-    notes.push("Company name extracted from visible page content.");
+    notes.push('Company name extracted from visible page content.');
   }
 
   if (!jsonLd.description && visibleDescription) {
-    notes.push("Description extracted from visible page content.");
+    notes.push('Description extracted from visible page content.');
   }
 
   return {
     title,
     companyName,
     description,
+    location,
+    workMode,
+    employmentType,
+    salary: jsonLd.salary,
+    datePosted: jsonLd.datePosted,
+    applicationDeadline: jsonLd.applicationDeadline,
     sourceUrl: page.url(),
     scrapedAt: new Date().toISOString(),
     metadata: {
       confidence: getConfidence(title, companyName, description),
-      extractionNotes: notes
-    }
+      extractionNotes: notes,
+    },
   };
 }
 
-async function extractTitle(page: Page, timeoutMs: number): Promise<string | null> {
+async function extractTitle(
+  page: Page,
+  timeoutMs: number,
+): Promise<string | null> {
   const candidates = [
-    page.locator('[data-testid*="job-title" i], [class*="job-title" i], [id*="job-title" i], [itemprop="title"]'),
-    page.getByRole("heading", { level: 1 }),
-    page.locator("h1")
+    page.locator(
+      '[data-testid*="job-title" i], [class*="job-title" i], [id*="job-title" i], [itemprop="title"]',
+    ),
+    page.getByRole('heading', { level: 1 }),
+    page.locator('h1'),
   ];
 
   for (const locator of candidates) {
@@ -104,18 +139,24 @@ async function extractTitle(page: Page, timeoutMs: number): Promise<string | nul
 
   const metaTitle = await getMetaContent(page, [
     'meta[property="og:title"]',
-    'meta[name="twitter:title"]'
+    'meta[name="twitter:title"]',
   ]);
 
   return metaTitle ?? compactText(await page.title().catch(() => null));
 }
 
-async function extractCompanyName(page: Page, timeoutMs: number): Promise<string | null> {
-  const companyLinks = await collectLocatorTexts(page.locator('a[href*="/companies/"]'), {
-    maxItems: 8,
-    timeoutMs,
-    visibleOnly: true
-  });
+async function extractCompanyName(
+  page: Page,
+  timeoutMs: number,
+): Promise<string | null> {
+  const companyLinks = await collectLocatorTexts(
+    page.locator('a[href*="/companies/"]'),
+    {
+      maxItems: 8,
+      timeoutMs,
+      visibleOnly: true,
+    },
+  );
   const linkedCompany = companyLinks.find(isValidCompanyName);
   if (linkedCompany) {
     return linkedCompany;
@@ -123,17 +164,19 @@ async function extractCompanyName(page: Page, timeoutMs: number): Promise<string
 
   const candidates = [
     page.locator(
-      '[data-testid*="company" i], [class*="company" i], [id*="company" i], [itemprop="hiringOrganization"]'
+      '[data-testid*="company" i], [class*="company" i], [id*="company" i], [itemprop="hiringOrganization"]',
     ),
-    page.locator('a[href*="company" i], a[href*="organization" i], a[href*="employer" i]'),
-    page.locator('[aria-label*="company" i], [aria-label*="employer" i]')
+    page.locator(
+      'a[href*="company" i], a[href*="organization" i], a[href*="employer" i]',
+    ),
+    page.locator('[aria-label*="company" i], [aria-label*="employer" i]'),
   ];
 
   for (const locator of candidates) {
     const texts = await collectLocatorTexts(locator, {
       maxItems: 8,
       timeoutMs,
-      visibleOnly: true
+      visibleOnly: true,
     });
     const text = texts.find(isValidCompanyName);
 
@@ -146,30 +189,35 @@ async function extractCompanyName(page: Page, timeoutMs: number): Promise<string
   return extractCompanyFromTitle(visibleTitle);
 }
 
-async function extractDescription(page: Page, timeoutMs: number): Promise<string | null> {
+async function extractDescription(
+  page: Page,
+  timeoutMs: number,
+): Promise<string | null> {
   const candidates: DescriptionCandidate[] = [
     {
-      name: "semantic job description",
+      name: 'semantic job description',
       locator: page.locator(
-        '[data-testid*="job-description" i], [class*="job-description" i], [id*="job-description" i], [itemprop="description"]'
+        '[data-testid*="job-description" i], [class*="job-description" i], [id*="job-description" i], [itemprop="description"]',
       ),
-      maxItems: 4
+      maxItems: 4,
     },
     {
-      name: "description section",
-      locator: page.locator('section:has-text("Description"), section:has-text("Responsibilities"), section:has-text("Requirements")'),
-      maxItems: 4
+      name: 'description section',
+      locator: page.locator(
+        'section:has-text("Description"), section:has-text("Responsibilities"), section:has-text("Requirements")',
+      ),
+      maxItems: 4,
     },
     {
-      name: "article",
-      locator: page.locator("article"),
-      maxItems: 2
+      name: 'article',
+      locator: page.locator('article'),
+      maxItems: 2,
     },
     {
-      name: "main",
-      locator: page.locator("main"),
-      maxItems: 1
-    }
+      name: 'main',
+      locator: page.locator('main'),
+      maxItems: 1,
+    },
   ];
 
   let bestText: string | null = null;
@@ -179,7 +227,7 @@ async function extractDescription(page: Page, timeoutMs: number): Promise<string
     const texts = await collectLocatorTexts(candidate.locator, {
       maxItems: candidate.maxItems ?? 3,
       timeoutMs,
-      visibleOnly: true
+      visibleOnly: true,
     });
 
     for (const text of texts) {
@@ -203,7 +251,9 @@ async function extractJsonLdJobPosting(page: Page): Promise<JsonLdExtraction> {
   const notes: string[] = [];
   const scripts = await page
     .locator('script[type="application/ld+json"]')
-    .evaluateAll((nodes) => nodes.map((node) => node.textContent ?? "").filter(Boolean))
+    .evaluateAll((nodes) =>
+      nodes.map((node) => node.textContent ?? '').filter(Boolean),
+    )
     .catch(() => []);
 
   for (const script of scripts) {
@@ -212,17 +262,25 @@ async function extractJsonLdJobPosting(page: Page): Promise<JsonLdExtraction> {
       const posting = findJobPosting(parsed);
 
       if (posting) {
-        notes.push("JobPosting JSON-LD found and used as primary structured source.");
+        notes.push(
+          'JobPosting JSON-LD found and used as primary structured source.',
+        );
 
         return {
           title: compactText(posting.title),
           companyName: extractOrganizationName(posting),
           description: await htmlToText(page, posting.description),
-          notes
+          location: extractJobLocation(posting),
+          workMode: extractWorkMode(posting),
+          employmentType: extractEmploymentType(posting),
+          salary: extractSalary(posting),
+          datePosted: posting.datePosted ?? null,
+          applicationDeadline: posting.validThrough ?? null,
+          notes,
         };
       }
     } catch {
-      notes.push("A JSON-LD script was present but could not be parsed.");
+      notes.push('A JSON-LD script was present but could not be parsed.');
     }
   }
 
@@ -230,7 +288,13 @@ async function extractJsonLdJobPosting(page: Page): Promise<JsonLdExtraction> {
     title: null,
     companyName: null,
     description: null,
-    notes
+    location: null,
+    workMode: 'unknown',
+    employmentType: 'unknown',
+    salary: null,
+    datePosted: null,
+    applicationDeadline: null,
+    notes,
   };
 }
 
@@ -250,7 +314,7 @@ function findJobPosting(value: unknown): JsonLdJobPosting | null {
     return null;
   }
 
-  if (matchesJobPostingType(value["@type"])) {
+  if (matchesJobPostingType(value['@type'])) {
     return value as JsonLdJobPosting;
   }
 
@@ -269,20 +333,25 @@ function matchesJobPostingType(typeValue: unknown): boolean {
     return typeValue.some(matchesJobPostingType);
   }
 
-  return typeof typeValue === "string" && typeValue.toLowerCase() === "jobposting";
+  return (
+    typeof typeValue === 'string' && typeValue.toLowerCase() === 'jobposting'
+  );
 }
 
 function extractOrganizationName(posting: JsonLdJobPosting): string | null {
   const organization = posting.hiringOrganization;
 
-  if (typeof organization === "string") {
+  if (typeof organization === 'string') {
     return compactText(organization);
   }
 
   return compactText(organization?.name);
 }
 
-async function htmlToText(page: Page, value: string | null | undefined): Promise<string | null> {
+async function htmlToText(
+  page: Page,
+  value: string | null | undefined,
+): Promise<string | null> {
   const raw = compactText(value);
   if (!raw) {
     return null;
@@ -290,13 +359,138 @@ async function htmlToText(page: Page, value: string | null | undefined): Promise
 
   const text = await page
     .evaluate((html) => {
-      const template = document.createElement("template");
+      const template = document.createElement('template');
       template.innerHTML = html;
       return template.content.textContent ?? html;
     }, raw)
-    .catch(() => raw.replace(/<[^>]+>/g, " "));
+    .catch(() => raw.replace(/<[^>]+>/g, ' '));
 
   return compactText(text);
+}
+
+async function extractLocation(
+  page: Page,
+  timeoutMs: number,
+): Promise<string | null> {
+  const candidates = [
+    page.locator(
+      '[data-testid*="location" i], [class*="job-location" i], [itemprop="jobLocation"]',
+    ),
+    page.getByLabel(/location/i),
+    page.locator('[class*="location" i]'),
+  ];
+
+  for (const locator of candidates) {
+    const text = await readLocatorText(locator, { timeoutMs });
+    if (text && text.length <= 200) {
+      return text;
+    }
+  }
+
+  const metaLocation = await getMetaContent(page, [
+    'meta[property="og:locale"]',
+    'meta[name="geo.placename"]',
+  ]);
+
+  return metaLocation;
+}
+
+function extractJobLocation(posting: JsonLdJobPosting): string | null {
+  const locations = Array.isArray(posting.jobLocation)
+    ? posting.jobLocation
+    : posting.jobLocation
+      ? [posting.jobLocation]
+      : [];
+
+  const parts: string[] = [];
+  for (const loc of locations) {
+    const addr = loc.address;
+    if (typeof addr === 'string') {
+      parts.push(addr);
+    } else if (addr) {
+      const segments = [
+        addr.addressLocality,
+        addr.addressRegion,
+        addr.addressCountry,
+      ].filter(Boolean);
+      if (segments.length > 0) {
+        parts.push(segments.join(', '));
+      }
+    }
+  }
+
+  return parts.length > 0 ? parts.join(' | ') : null;
+}
+
+function extractWorkMode(posting: JsonLdJobPosting): WorkMode {
+  const locationType = posting.jobLocationType?.toLowerCase() ?? '';
+  if (locationType.includes('telecommute') || locationType.includes('remote')) {
+    return 'remote';
+  }
+  return 'unknown';
+}
+
+function detectWorkMode(description: string | null): WorkMode {
+  if (!description) return 'unknown';
+  const lower = description.toLowerCase();
+  if (/\bfully remote\b|\bremote[- ]first\b|\b100% remote\b/.test(lower))
+    return 'remote';
+  if (/\bhybrid\b/.test(lower)) return 'hybrid';
+  if (/\bon[- ]?site\b|\bin[- ]?office\b/.test(lower)) return 'onsite';
+  return 'unknown';
+}
+
+function extractEmploymentType(posting: JsonLdJobPosting): EmploymentType {
+  const types = Array.isArray(posting.employmentType)
+    ? posting.employmentType
+    : posting.employmentType
+      ? [posting.employmentType]
+      : [];
+
+  for (const t of types) {
+    const lower = t.toLowerCase().replace(/[_\s-]/g, '');
+    if (lower === 'fulltime') return 'full-time';
+    if (lower === 'parttime') return 'part-time';
+    if (lower === 'contract' || lower === 'contractor') return 'contract';
+    if (lower === 'intern' || lower === 'internship') return 'internship';
+    if (lower === 'temporary') return 'temporary';
+  }
+
+  return 'unknown';
+}
+
+function detectEmploymentType(description: string | null): EmploymentType {
+  if (!description) return 'unknown';
+  const lower = description.toLowerCase();
+  if (/\bfull[- ]?time\b/.test(lower)) return 'full-time';
+  if (/\bpart[- ]?time\b/.test(lower)) return 'part-time';
+  if (/\bcontract\b/.test(lower)) return 'contract';
+  if (/\binternship\b|\bintern\b/.test(lower)) return 'internship';
+  return 'unknown';
+}
+
+function extractSalary(posting: JsonLdJobPosting): SalaryRange | null {
+  const base = posting.baseSalary;
+  if (!base) return null;
+
+  const currency = base.currency ?? undefined;
+
+  if (typeof base.value === 'number') {
+    const result: SalaryRange = { min: base.value, max: base.value };
+    if (currency) result.currency = currency;
+    return result;
+  }
+
+  if (base.value && typeof base.value === 'object') {
+    const result: SalaryRange = {};
+    if (base.value.minValue != null) result.min = base.value.minValue;
+    if (base.value.maxValue != null) result.max = base.value.maxValue;
+    if (currency) result.currency = currency;
+    if (base.value.unitText) result.period = base.value.unitText;
+    return result;
+  }
+
+  return null;
 }
 
 function scoreDescription(text: string): number {
@@ -308,9 +502,11 @@ function scoreDescription(text: string): number {
   return Math.min(text.length, 2_000) + termScore;
 }
 
-async function extractDescriptionFromBodyText(page: Page): Promise<string | null> {
+async function extractDescriptionFromBodyText(
+  page: Page,
+): Promise<string | null> {
   const bodyText = await page
-    .locator("body")
+    .locator('body')
     .innerText({ timeout: 1_500 })
     .catch(() => null);
   const text = compactText(bodyText);
@@ -320,24 +516,29 @@ async function extractDescriptionFromBodyText(page: Page): Promise<string | null
   }
 
   const lowerText = text.toLowerCase();
-  const startIndex = lowerText.indexOf("about the role");
+  const startIndex = lowerText.indexOf('about the role');
   if (startIndex < 0) {
     return null;
   }
 
   const endMarkers = [
-    "apply now other jobs",
-    "other jobs at",
-    "hundreds of yc startups",
-    "work at a startup jobs internships"
+    'apply now other jobs',
+    'other jobs at',
+    'hundreds of yc startups',
+    'work at a startup jobs internships',
   ];
   const markerIndexes = endMarkers
-    .map((marker) => lowerText.indexOf(marker, startIndex + "about the role".length))
+    .map((marker) =>
+      lowerText.indexOf(marker, startIndex + 'about the role'.length),
+    )
     .filter((index) => index > startIndex);
-  const endIndex = markerIndexes.length > 0 ? Math.min(...markerIndexes) : text.length;
+  const endIndex =
+    markerIndexes.length > 0 ? Math.min(...markerIndexes) : text.length;
   const description = compactText(text.slice(startIndex, endIndex));
 
-  return description && scoreDescription(description) >= 80 ? description : null;
+  return description && scoreDescription(description) >= 80
+    ? description
+    : null;
 }
 
 function extractCompanyFromTitle(title: string | null): string | null {
@@ -349,25 +550,29 @@ function extractCompanyFromTitle(title: string | null): string | null {
 
 function isValidCompanyName(value: string | null | undefined): value is string {
   const text = compactText(value);
-  return Boolean(text && text.length <= 160 && !INVALID_COMPANY_TEXTS.has(text.toLowerCase()));
+  return Boolean(
+    text &&
+    text.length <= 160 &&
+    !INVALID_COMPANY_TEXTS.has(text.toLowerCase()),
+  );
 }
 
 function getConfidence(
   title: string | null,
   companyName: string | null,
-  description: string | null
+  description: string | null,
 ): ExtractionConfidence {
   if (title && companyName && description) {
-    return "high";
+    return 'high';
   }
 
   if (title && description) {
-    return "medium";
+    return 'medium';
   }
 
-  return "low";
+  return 'low';
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+  return typeof value === 'object' && value !== null;
 }

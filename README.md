@@ -69,6 +69,18 @@ Run with a visible browser:
 npm run dev -- --headed https://example.com/job-posting
 ```
 
+When a site shows bot protection, use a visible browser and complete the check manually:
+
+```bash
+npm run dev -- --headed --verbose --challenge-timeout-ms 120000 https://example.com/job-posting
+```
+
+To fail fast instead of waiting on a challenge page:
+
+```bash
+npm run dev -- --headed --challenge-timeout-ms 0 https://example.com/job-posting
+```
+
 You can also use an environment variable:
 
 ```bash
