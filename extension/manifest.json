@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "Auto Apply Helper",
+  "version": "1.0.0",
+  "description": "Extracts job posting data and autofills application forms.",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": [
+    "https://*.workatastartup.com/*",
+    "https://*.greenhouse.io/*",
+    "https://job-boards.greenhouse.io/*",
+    "https://*.lever.co/*",
+    "https://*.wellfound.com/*",
+    "https://*.linkedin.com/jobs/*",
+    "https://*.ashbyhq.com/*"
+  ],
+  "background": {
+    "service_worker": "dist/background.js"
+  },
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_title": "Auto Apply Helper",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "options_page": "src/options/options.html",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.workatastartup.com/*",
+        "https://*.greenhouse.io/*",
+        "https://job-boards.greenhouse.io/*",
+        "https://*.lever.co/*",
+        "https://*.wellfound.com/*",
+        "https://*.linkedin.com/jobs/*",
+        "https://*.ashbyhq.com/*"
+      ],
+      "js": ["dist/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

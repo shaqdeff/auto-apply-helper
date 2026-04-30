@@ -1,0 +1,195 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 360px;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  color: #1f2937;
+  background: #ffffff;
+}
+
+.popup {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.popup__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.popup__header h1 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: #2563eb;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.link-btn:hover {
+  text-decoration: underline;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.status {
+  padding: 12px;
+  border-radius: 6px;
+  background: #f3f4f6;
+}
+
+.status--error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status__text {
+  font-size: 13px;
+}
+
+.job {
+  padding: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+
+.job__title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.job__company {
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.job__location {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.job__confidence {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.job__preview {
+  font-size: 12px;
+  color: #4b5563;
+  margin-top: 8px;
+  line-height: 1.4;
+  max-height: 100px;
+  overflow: hidden;
+  position: relative;
+}
+
+.job__preview::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 24px;
+  background: linear-gradient(transparent, #f9fafb);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.primary-btn,
+.secondary-btn {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s;
+}
+
+.primary-btn {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.primary-btn:hover {
+  background: #1d4ed8;
+}
+
+.primary-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.secondary-btn {
+  background: #ffffff;
+  color: #1f2937;
+  border-color: #d1d5db;
+}
+
+.secondary-btn:hover {
+  background: #f9fafb;
+}
+
+.result {
+  padding: 12px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 6px;
+}
+
+.result__summary {
+  font-size: 13px;
+  font-weight: 500;
+  color: #065f46;
+}
+
+.result__list {
+  list-style: none;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #047857;
+}
+
+.result__list li::before {
+  content: '✓ ';
+}
+
+.warning {
+  padding: 12px;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+}
+
+.warning p {
+  font-size: 13px;
+  color: #92400e;
+  margin-bottom: 8px;
+}

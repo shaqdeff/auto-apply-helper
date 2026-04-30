@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Auto Apply — Settings</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+
+<body>
+  <main class="container">
+    <h1>Auto Apply Settings</h1>
+    <p class="subtitle">
+      These details are saved locally and used to autofill application forms.
+    </p>
+
+    <form id="profile-form" class="form">
+      <fieldset>
+        <legend>Required</legend>
+        <div class="field">
+          <label for="fullName">Full name</label>
+          <input id="fullName" name="fullName" type="text" required />
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="firstName">First name</label>
+            <input id="firstName" name="firstName" type="text" />
+          </div>
+          <div class="field">
+            <label for="lastName">Last name</label>
+            <input id="lastName" name="lastName" type="text" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" required />
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Contact</legend>
+        <div class="field">
+          <label for="phone">Phone</label>
+          <input id="phone" name="phone" type="tel" />
+        </div>
+        <div class="field">
+          <label for="location">Location (City, State)</label>
+          <input id="location" name="location" type="text" />
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Links</legend>
+        <div class="field">
+          <label for="linkedInUrl">LinkedIn URL</label>
+          <input id="linkedInUrl" name="linkedInUrl" type="url" />
+        </div>
+        <div class="field">
+          <label for="githubUrl">GitHub URL</label>
+          <input id="githubUrl" name="githubUrl" type="url" />
+        </div>
+        <div class="field">
+          <label for="portfolioUrl">Portfolio / Website</label>
+          <input id="portfolioUrl" name="portfolioUrl" type="url" />
+        </div>
+        <div class="field">
+          <label for="profileUrl">Other profile URL</label>
+          <input id="profileUrl" name="profileUrl" type="url" />
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Work details</legend>
+        <div class="field">
+          <label for="workAuthorization">Work authorization</label>
+          <input id="workAuthorization" name="workAuthorization" type="text"
+            placeholder="e.g. US Citizen, H-1B, EU Citizen" />
+        </div>
+        <div class="field field--inline">
+          <input id="sponsorshipRequired" name="sponsorshipRequired" type="checkbox" />
+          <label for="sponsorshipRequired">
+            I require visa sponsorship
+          </label>
+        </div>
+        <div class="field">
+          <label for="yearsOfExperience">Years of experience</label>
+          <input id="yearsOfExperience" name="yearsOfExperience" type="text" />
+        </div>
+        <div class="field">
+          <label for="desiredSalary">Desired salary</label>
+          <input id="desiredSalary" name="desiredSalary" type="text" />
+        </div>
+        <div class="field">
+          <label for="startDate">Start date</label>
+          <input id="startDate" name="startDate" type="text" placeholder="e.g. Immediate, 2 weeks notice" />
+        </div>
+      </fieldset>
+
+      <div class="actions">
+        <button type="submit" class="primary-btn">Save profile</button>
+        <span id="saved" class="saved hidden">Saved ✓</span>
+      </div>
+    </form>
+  </main>
+  <script src="options.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Auto Apply</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+
+<body>
+  <main class="popup">
+    <header class="popup__header">
+      <h1>Auto Apply</h1>
+      <button id="open-options" class="link-btn" type="button">
+        Settings
+      </button>
+    </header>
+
+    <section id="status" class="status status--loading">
+      <p class="status__text">Reading job page…</p>
+    </section>
+
+    <section id="job" class="job hidden">
+      <div class="job__title" id="job-title">—</div>
+      <div class="job__company" id="job-company">—</div>
+      <div class="job__location" id="job-location"></div>
+      <div class="job__confidence">
+        Confidence: <span id="job-confidence">—</span>
+      </div>
+      <p class="job__preview" id="job-preview"></p>
+    </section>
+
+    <section id="actions" class="actions hidden">
+      <button id="autofill" class="primary-btn" type="button">
+        Autofill
+      </button>
+      <button id="click-apply" class="secondary-btn" type="button">
+        Click Apply
+      </button>
+    </section>
+
+    <section id="result" class="result hidden">
+      <p class="result__summary" id="result-summary"></p>
+      <ul class="result__list" id="result-fields"></ul>
+    </section>
+
+    <section id="profile-warning" class="warning hidden">
+      <p>
+        Your profile is incomplete. Please fill it in to enable autofill.
+      </p>
+      <button id="open-options-warning" class="primary-btn" type="button">
+        Open Settings
+      </button>
+    </section>
+  </main>
+  <script src="popup.js"></script>
+</body>
+
+</html>
